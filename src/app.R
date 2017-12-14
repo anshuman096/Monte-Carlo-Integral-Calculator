@@ -217,7 +217,7 @@ server <- function(input, output) {
     nntext = parse(text = ntext)
     estimate = try(mean(eval(nntext))*(eval(nrightb)-eval(nleftb)))
     if(class(estimate) == "try-error") 
-      print("fuck")
+      print("Cannot be estimated")
     else
       estimate
       
