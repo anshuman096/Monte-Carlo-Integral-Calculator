@@ -10,6 +10,7 @@
 library(shiny)
 library(shinydashboard)
 library(shinythemes)
+<<<<<<< Updated upstream
 # Define UI for application that draws a histogram
 # library(dygraphs) # optional, used for dygraphs
 
@@ -101,6 +102,9 @@ body <- dashboardBody(
 ) # /dashboardBody
 
 dashboardPage(header, sidebar, body, skin = "black")
+=======
+library(ggplot2)
+>>>>>>> Stashed changes
 
 ui <- fluidPage(
   
@@ -171,6 +175,7 @@ server <- function(input, output) {
      paste("Function:", input$text)
      
    })
+   
    formula = function(){
      req(input$iterations)
      req(input$dist)
@@ -219,28 +224,23 @@ server <- function(input, output) {
      
    }
   
+   
    integral = function(){
-     req(input$text)
-     req(input$rightb)
-     req(input$leftb)
-     req(input$iterations)
-     req(input$dist)
+     req(input$text) # require the text for the function to integrate
+     req(input$rightb) # upper bound
+     req(input$leftb) # lower bound
      
-     m=input$iterations
-     ndist=input$dist
-     ngeop=input$geop
-     nsize=input$size
-     nbp=input$bp
-     nlambda=input$lambda
-     
-     ntext <- input$text
-     nrightb <- parse(text=input$rightb)
-     nleftb <- parse(text=input$leftb)
-     nntext = parse(text = ntext)
-     integrand <- function(x){ eval(parse(text = input$text))}
-     #Mu1b <- Vectorize(integrand, "x")
+     nrightb <- parse(text=input$rightb) # right bound
+     nleftb <- parse(text=input$leftb) # left bound
+     #nntext = parse(text = ntext) # converts text to expression
+     integrand <- function(x){
+       eval(parse(text = input$text)) # 
+     }
      val = integrate(integrand, lower = eval(nleftb), upper = eval(nrightb))
-     val[1]
+     if(is.nan(val[1]))
+      print("integral diverges or cannot be evaluated")
+     else
+      val[1]
    }
    
    output$theta.hat = renderText({
@@ -251,7 +251,7 @@ server <- function(input, output) {
      paste("Actual:", integral())
    })
    
-   library(ggplot2)
+   
    output$plot = renderPlot({
      actual_value = integral() # actual value of the integral
      simulation_data = vector(length = input$iterations)
@@ -260,7 +260,6 @@ server <- function(input, output) {
      
      estimation_data = data.frame(seq(1:input$iterations), simulation_data)
      names(estimation_data) = c("Simulation", "Value")
-     # print(estimation_data)
      
      values_plot = ggplot(estimation_data) +
        geom_point(aes(Simulation, Value), color = "blue") + 
