@@ -10,6 +10,8 @@
 library(shiny)
 library(shinydashboard)
 library(shinythemes)
+library(ggplot2)
+library(plotly)
 # Define UI for application that draws a histogram
 # library(dygraphs) # optional, used for dygraphs
 
@@ -34,8 +36,8 @@ body <- dashboardBody(
             sidebarLayout(
               sidebarPanel(
                 radioButtons("dist", "Distribution type:",
-                             c("Normal" = "norm",
-                               "Uniform" = "unif",
+                             c("Uniform" = "unif",
+                               "Normal" = "norm",
                                "Log-normal" = "lnorm",
                                "Exponential" = "exp",
                                "Geometric" = "geo",
@@ -57,9 +59,9 @@ body <- dashboardBody(
                 br(),
                 
                 textInput("text", "Enter the function:"),
-                numericInput("iterations", "Input the number of iterations:", "1"),
                 numericInput("leftb", "Left Bound:", "0"),
-                numericInput("rightb", "Right Bound:", "0")
+                numericInput("rightb", "Right Bound:", "0"),
+                numericInput("iterations", "Input the number of iterations:", "1")
               ),
               mainPanel(
                 verbatimTextOutput("text"),
@@ -251,7 +253,7 @@ server <- function(input, output) {
     paste("Actual Value:", integral())
   })
   
-  library(ggplot2)
+  
   output$plot = renderPlot({
     actual_value = integral() # actual value of the integral
     simulation_data = vector(length = input$iterations)
