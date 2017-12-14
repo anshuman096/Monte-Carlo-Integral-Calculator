@@ -215,7 +215,12 @@ server <- function(input, output) {
     nrightb <- parse(text=input$rightb)
     nleftb <- parse(text=input$leftb)
     nntext = parse(text = ntext)
-    mean(eval(nntext))*(eval(nrightb)-eval(nleftb))
+    estimate = try(mean(eval(nntext))*(eval(nrightb)-eval(nleftb)))
+    if(class(estimate) == "try-error") 
+      print("fuck")
+    else
+      estimate
+      
     
   }
   
@@ -223,32 +228,27 @@ server <- function(input, output) {
     req(input$text)
     req(input$rightb)
     req(input$leftb)
-    req(input$iterations)
-    req(input$dist)
     
-    m=input$iterations
-    ndist=input$dist
-    ngeop=input$geop
-    nsize=input$size
-    nbp=input$bp
-    nlambda=input$lambda
+    ntext <- input$text # text expression for function to integrate
+    nrightb <- parse(text=input$rightb) # upper bound
+    nleftb <- parse(text=input$leftb) # lower bound
+    integrand <- function(x){
+      eval(parse(text = input$text))
+    }
     
-    ntext <- input$text
-    nrightb <- parse(text=input$rightb)
-    nleftb <- parse(text=input$leftb)
-    nntext = parse(text = ntext)
-    integrand <- function(x){ eval(parse(text = input$text))}
-    #Mu1b <- Vectorize(integrand, "x")
-    val = integrate(integrand, lower = eval(nleftb), upper = eval(nrightb))
-    val[1]
+    val = try(integrate(integrand, lower = eval(nleftb), upper = eval(nrightb)))
+    if(class(val) == "try-error")
+      print("Integral cannot be computed")
+    else
+      val[1]
   }
   
   output$theta.hat = renderText({
-    paste("Estimate:", formula())
+    paste("Monte Carlo Estimate:", formula())
   })
   
   output$actual = renderText({
-    paste("Actual:", integral())
+    paste("Actual Value:", integral())
   })
   
   library(ggplot2)
