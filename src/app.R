@@ -8,61 +8,161 @@
 #
 
 library(shiny)
+library(shinydashboard)
 library(shinythemes)
 # Define UI for application that draws a histogram
+# library(dygraphs) # optional, used for dygraphs
+
+# Header elements for the visualization
+header <- dashboardHeader(title = "Tools", disable = FALSE)
+
+# Sidebar elements for the search visualizations
+sidebar <- dashboardSidebar(
+  sidebarMenu(
+    menuItem(text = "Bootstrap and Jackknife",  tabName = "bootknife"),
+    menuItem(text="Monte Carlo Integration", tabName = "mci")
+    ) # /menuItem
+    # this is where other menuItems & menuSubItems would go
+  ) # /sidebarMenu
+# /dashboardSidebar
+
+#Body elements for the search visualizations.
+body <- dashboardBody(
+  tabItems(
+    tabItem(tabName = "mci",
+              # Sidebar with a slider input for number of bins 
+              sidebarLayout(
+                sidebarPanel(
+                  radioButtons("dist", "Distribution type:",
+                               c("Normal" = "norm",
+                                 "Uniform" = "unif",
+                                 "Log-normal" = "lnorm",
+                                 "Exponential" = "exp",
+                                 "Geometric" = "geo",
+                                 "Binomial" = "binom",
+                                 "Poisson" = "poisson")
+                  ),
+                  
+                  conditionalPanel("input.dist == 'geo'",
+                                   numericInput("geop","Enter the probability value:","")),
+                  conditionalPanel("input.dist == 'binom'",
+                                   numericInput("size", "Enter the size:","")),
+                  conditionalPanel("input.dist == 'binom'",
+                                   numericInput("bp","Enter the probability value:","")),
+                  conditionalPanel("input.dist == 'poisson'",
+                                   numericInput("lambda","Enter the lambda value:","")),
+                  
+                  
+                  # br() element to introduce extra vertical spacing ----
+                  br(),
+                  
+                  textInput("text", "Enter the function:"),
+                  numericInput("iterations", "Input the number of iterations:", "1"),
+                  numericInput("leftb", "Left Bound:", "0"),
+                  numericInput("rightb", "Right Bound:", "0")
+                ),
+                mainPanel(
+                  verbatimTextOutput("text"),
+                  verbatimTextOutput("theta.hat"),
+                  verbatimTextOutput("actual"),
+                  plotOutput(outputId = "plot")
+                )
+        )
+    ),
+    tabItem(tabName = "bootknife",
+            # Sidebar with a slider input for number of bins 
+            titlePanel("Bootstrap"),
+            
+            # Sidebar with a slider input for number of bins 
+            sidebarLayout(
+              sidebarPanel(
+                sliderInput("repSize",
+                            "Size of Boostrap Replicates",
+                            min = 1000,
+                            max = 10000,
+                            value = 100),
+                checkboxGroupInput(inputId = "ci", label="Types of Confidence Intervals:", choiceNames = c("Percentile", "Normal", "Bca", "Basic"),
+                                   choiceValues = c("perc", "norm", "bca", "basic"), selected = c("perc")),
+                radioButtons("estimator", "Choose Estimator:",
+                             c("Mean" = "mean",
+                               "Median" = "median"
+                             ))
+              ),
+              
+              mainPanel(
+                plotOutput("distPlot"),
+                tags$p("Useful Statistics"),
+                verbatimTextOutput("stats"),
+                verbatimTextOutput("CI")
+              )
+            )
+    )
+  ) # /tabItems
+) # /dashboardBody
+
+dashboardPage(header, sidebar, body, skin = "black")
+
 ui <- fluidPage(
+  
    theme = shinytheme("slate"),
    # Application title
    titlePanel("Monte Carlo Integration Calculator"),
-   
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-      sidebarPanel(
-        radioButtons("dist", "Distribution type:",
-                     c("Normal" = "norm",
-                       "Uniform" = "unif",
-                       "Log-normal" = "lnorm",
-                       "Exponential" = "exp",
-                       "Geometric" = "geo",
-                       "Binomial" = "binom",
-                       "Poisson" = "poisson")
-                     ),
-      
-        conditionalPanel("input.dist == 'geo'",
-                          numericInput("geop","Enter the probability value:","")),
-        conditionalPanel("input.dist == 'binom'",
-                         numericInput("size", "Enter the size:","")),
-        conditionalPanel("input.dist == 'binom'",
-                         numericInput("bp","Enter the probability value:","")),
-        conditionalPanel("input.dist == 'poisson'",
-                          numericInput("lambda","Enter the lambda value:","")),
-        
-        
-        # br() element to introduce extra vertical spacing ----
-        br(),
-
-        textInput("text", "Enter the function:"),
-        numericInput("iterations", "Input the number of iterations:", "1"),
-        numericInput("leftb", "Left Bound:", "0"),
-        numericInput("rightb", "Right Bound:", "0")
-        
-      ),
-      #tags$head(
-        #  tags$style(HTML(
-        #    ".shiny-output-error { visibility: hidden; },
-         #   .shiny-output-error:before { visibility: hidden; }"
-         # )
-      #  )
-      #),
-      # Show a plot of the generated distribution
-      mainPanel(
-        verbatimTextOutput("text"),
-        verbatimTextOutput("theta.hat"),
-        verbatimTextOutput("actual"),
-        plotOutput(outputId = "plot")
-      )
-   )
+   dashboardPage(header, sidebar, body, skin = "black")
+  
 )
+
+getData = function (repSize, estimator) {
+  library(bootstrap)
+  library(boot)
+  data(law, package = "bootstrap")
+  r <- function(x, i) { #want correlation of columns 1 and 2 
+    cor(x[i,1], x[i,2]) 
+  }
+  
+  m = function(x,i){
+    mean(x[i])
+  }
+  
+  md = function(x,i){
+    median(x[i])
+  }
+  
+  var = function(x,i){
+    var(x[i])
+  }
+  stat = m
+  if(estimator == "mean"){
+    stat = m
+  } else if(estimator == "median")
+    stat = md
+  else
+    stat = r
+  print(law$GPA)
+  results <- boot(data = law$GPA, statistic = stat, R = repSize)
+  return (list("dt" = results))
+  
+}
+
+formatCI = function(ci_obj) {
+  bca_vals = c(1.5,2.34)
+  studt_vals = c(3.14,4.18)
+  df2 = data.frame(bca_vals, studt_vals)
+  row.names(df2) = c("bca", "studt")
+  colnames(df2) = c("lower", "upper")
+  num_sim = 500 
+  str1 = "BOOTSTRAP CONFIDENCE INTERVAL CALCULATIONS\nBased on "
+  str2 = " bootstrap replicates\n\nIntervals:\n"
+  str7 = "Level\t"
+  types = "BCA\t\tStudent-t\n"
+  str3 = "95%\t("
+  str4 = ", "
+  str5 = ")\t("
+  str6 = ")"
+  
+  
+  cat(paste(str1, num_sim, str2, str3, bca_vals[1], str4, bca_vals[2], str5, studt_vals[1], str4, studt_vals[2], str6))
+}
+
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
@@ -169,6 +269,39 @@ server <- function(input, output) {
      
      values_plot
    })
+   
+   
+   dt = reactive ({
+     getData(input$repSize, input$estimator)
+   })
+   
+   output$distPlot <- renderPlot({
+     data = dt()$dt
+     ci = dt()$ci
+     #hist(data$t, col='darkgray', border = 'white', main ="Histogram of the Estimator", xlab = "Estimator" )
+     res = data.frame(data$t)
+     ggplot(res) + geom_histogram() + xlab("Estimator")
+     #abline(v=mean(data$t), col="red")
+     #abline(v=median(data$t), col="black", lty=2)
+     #legend("topleft", 
+     #      c("mean", "median"),
+     #     lty=c(1, 2), 
+     #    col=c("red","black"), 
+     #   bty = "n")
+   })
+   
+   output$stats = renderPrint({
+     data = dt()$dt
+     summary(data$t)
+     
+   })
+   
+   output$CI = renderPrint({
+     estimator = dt()$dt
+     ci_types = input$ci
+     boot.ci(estimator, type=ci_types)
+   })
+   
 }
 
 # Run the application 
