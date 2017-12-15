@@ -281,7 +281,7 @@ server <- function(input, output) {
     
     val = try(integrate(integrand, lower = eval(nleftb), upper = eval(nrightb)))
     if(class(val) == "try-error")
-      print("Integral cannot be computed")
+      print("Integral cannot be computed or diverges")
     else
       val[1]
   }
@@ -310,6 +310,8 @@ server <- function(input, output) {
     if(sampling_dist == "unif") {
       dist_plot + 
         geom_hline(yintercept = as.numeric(right_bound), color = "black") + 
+        #geom_segment(aes(x = left_bound, y = 0, xend = right_bound, yend = right_bound)) +
+        #geom_polygon(data = data.frame(x = c(left_bound, right_bound)), aes(left_bound, right_bound)) + 
         scale_y_continuous(limits = c(0, right_bound))
     } else if(sampling_dist == "norm") {
       dist_plot + 
