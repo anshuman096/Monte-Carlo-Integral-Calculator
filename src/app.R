@@ -11,7 +11,7 @@ library(shiny)
 library(shinydashboard)
 library(shinythemes)
 library(ggplot2)
-library(plotly)
+
 # Define UI for application that draws a histogram
 # library(dygraphs) # optional, used for dygraphs
 
@@ -67,6 +67,7 @@ body <- dashboardBody(
                 verbatimTextOutput("text"),
                 verbatimTextOutput("theta.hat"),
                 verbatimTextOutput("actual"),
+                plotOutput(outputId = "distribution_plot"),
                 plotOutput(outputId = "plot")
               )
             )
@@ -171,8 +172,8 @@ server <- function(input, output) {
   
   output$text <- renderText({
     paste("Function:", input$text)
-    
   })
+  
   formula = function(){
     req(input$iterations)
     req(input$dist)
@@ -251,6 +252,32 @@ server <- function(input, output) {
   
   output$actual = renderText({
     paste("Actual Value:", integral())
+  })
+  
+  output$distribution_plot = renderPlot({
+    req(input$dist)
+    req(input$leftb)
+    req(input$rightb)
+    
+    sampling_dist = input$dist
+    left_bound = input$leftb
+    right_bound = input$rightb
+    
+    dist_plot = ggplot(data.frame(x = c(left_bound, right_bound)), aes(x)) +
+      title("Sampling Distribution Curve")
+    
+    if(sampling_dist == "unif") {
+      dist_plot + 
+        geom_hline(yintercept = as.numeric(right_bound), color = "black") + 
+        scale_y_continuous(limits = c(0, right_bound))
+    } else if(sampling_dist == "norm") {
+      dist_plot + 
+        stat_function(fun = dnorm, n = input$iterations, args = list(mean = 0, sd = 1))
+    } else if(sampling_dist == "lnorm") {
+      
+    }
+    
+    
   })
   
   
