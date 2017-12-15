@@ -298,13 +298,17 @@ server <- function(input, output) {
     req(input$dist)
     req(input$leftb)
     req(input$rightb)
+    req(input$text)
     
     sampling_dist = input$dist
+    expr = input$text
     left_bound = input$leftb
     right_bound = input$rightb
     
+    expression = function(x) { eval(parse(text = input$text)) }
+    
     dist_plot = ggplot(data.frame(x = c(left_bound, right_bound)), aes(x)) +
-      title("Sampling Distribution Curve")
+      title("Sampling Area Curve - Sample values are drawn from shaded areas")
     
     vector_vals = seq(as.integer(left_bound), as.integer(right_bound))
     
@@ -312,19 +316,23 @@ server <- function(input, output) {
       dist_plot + 
         geom_hline(yintercept = as.numeric(right_bound), color = "black") + 
         geom_rect(aes(xmin = left_bound, xmax = right_bound, ymin = 0, ymax = right_bound)) + 
+        stat_function(fun = expression, color = "blue") + 
         scale_y_continuous(limits = c(0, right_bound))
     } else if(sampling_dist == "norm") {
       dist_plot + 
         stat_function(fun = dnorm, n = input$iterations, args = list(mean = 0, sd = 1), geom = "area") + 
-        stat_function(fun = dnorm, xlim = c(left_bound, right_bound), geom = "area")
+        stat_function(fun = dnorm, xlim = c(left_bound, right_bound), geom = "area") + 
+        stat_function(fun = expression, color = "blue")
     } else if(sampling_dist == "lnorm") {
       dist_plot + 
         stat_function(fun = dlnorm) + 
-        stat_function(fun = dlnorm, xlim = c(left_bound, right_bound), geom = "area")
+        stat_function(fun = dlnorm, xlim = c(left_bound, right_bound), geom = "area") + 
+        stat_function(fun = expression, color = "blue")
     } else if(sampling_dist == "exp") {
       dist_plot + 
         stat_function(fun = dexp) + 
-        stat_function(fun = dexp, xlim = c(left_bound, right_bound), geom = "area")
+        stat_function(fun = dexp, xlim = c(left_bound, right_bound), geom = "area") + 
+        stat_function(fun = expression, color = "blue")
     } else if(sampling_dist == "geo") {
       sample_vals = data.frame(vector_vals, dgeom(vector_vals, prob = input$geop))
       names(sample_vals) = c("x", "y")
@@ -336,7 +344,8 @@ server <- function(input, output) {
         geom_line(aes(fill = fill_var)) + 
         geom_area() + 
         scale_fill_brewer() + 
-        labs(title = "Sampling Distribution Curve", x = "x", y = "y")
+        stat_function(fun = expression, color = "blue") + 
+        labs(title = "Sampling Area Curve - Sample values are drawn from shaded areas", x = "x", y = "y")
       
     } else if(sampling_dist == "binom") {
       sample_vals = data.frame(vector_vals, dbinom(vector_vals, size = input$size, prob = input$bp))
@@ -349,7 +358,8 @@ server <- function(input, output) {
         geom_line(aes(fill = fill_var)) + 
         geom_area() + 
         scale_fill_brewer() + 
-        labs(title = "Sampling Distribution Curve", x = "x", y = "y")
+        stat_function(fun = expression, color = "blue") + 
+        labs(title = "Sampling Area Curve - Sample values are drawn from shaded areas", x = "x", y = "y")
       
     } else {
       sample_vals = data.frame(vector_vals, dpois(vector_vals, lambda = input$lambda))
@@ -362,6 +372,7 @@ server <- function(input, output) {
         geom_line(aes(fill = fill_var)) + 
         geom_area() + 
         scale_fill_brewer() + 
+        stat_function(fun = expression, color = "blue") + 
         labs(title = "Sampling Distribution Curve", x = "x", y = "y")
     }
     
