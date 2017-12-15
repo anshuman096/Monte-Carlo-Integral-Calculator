@@ -73,33 +73,54 @@ body <- dashboardBody(
             )
     ),
     tabItem(tabName = "bootknife",
-            # Sidebar with a slider input for number of bins 
-            titlePanel("Bootstrap"),
+            titlePanel("Non Parametric Bootstrap and Jackknife"),
             
-            # Sidebar with a slider input for number of bins 
+            # Sidebar layout with input and output definitions ----
             sidebarLayout(
+              
+              # Sidebar panel for inputs ----
               sidebarPanel(
+                
+                # Input: Select a file ----
+                fileInput("file1", "Choose CSV File",
+                          multiple = TRUE,
+                          accept = c("text/csv",
+                                     "text/comma-separated-values,text/plain",
+                                     ".csv")),
                 sliderInput("repSize",
                             "Size of Boostrap Replicates",
                             min = 1000,
                             max = 10000,
-                            value = 100),
-                checkboxGroupInput(inputId = "ci", label="Types of Confidence Intervals:", choiceNames = c("Percentile", "Normal", "Bca", "Basic"),
+                            value = 1000),
+                checkboxGroupInput(inputId = "ci", label="Types of Confidence Intervals (Only for Bootstrap):", choiceNames = c("Percentile", "Normal", "Bca", "Basic"),
                                    choiceValues = c("perc", "norm", "bca", "basic"), selected = c("perc")),
                 radioButtons("estimator", "Choose Estimator:",
                              c("Mean" = "mean",
-                               "Median" = "median"
-                             ))
+                               "Median" = "median",
+                               "Variance" =  "var"
+                             )),
+                radioButtons("method", "Choose Method: ",
+                             c("Bootstrap" = "bt",
+                               "Jackknife" = "jk"))
               ),
               
+              
+              
+              # Main panel for displaying outputs ----
               mainPanel(
+                # Output: Data file ----
+                tableOutput("contents"),
+                uiOutput("checkbox"),
+                uiOutput("estimator"),
+                uiOutput("submit"),
                 plotOutput("distPlot"),
-                tags$p("Useful Statistics"),
                 verbatimTextOutput("stats"),
                 verbatimTextOutput("CI")
+                
               )
             )
     )
+    
   ) # /tabItems
 ) # /dashboardBody
 
@@ -114,13 +135,17 @@ ui <- fluidPage(
   
 )
 
-getData = function (repSize, estimator) {
-  library(bootstrap)
+
+getData = function (data, repSize, func) {
   library(boot)
-  data(law, package = "bootstrap")
-  r <- function(x, i) { #want correlation of columns 1 and 2 
-    cor(x[i,1], x[i,2]) 
-  }
+  cat(data[0])
+  results <- boot(data = data, statistic = median, R = repSize)
+  return (list("dt" = results))
+  
+}
+
+jackknife = function(x, estimator){ 
+  
   
   m = function(x,i){
     mean(x[i])
@@ -130,7 +155,41 @@ getData = function (repSize, estimator) {
     median(x[i])
   }
   
-  var = function(x,i){
+  vari = function(x,i){
+    var(x[i])
+  }
+  theta = m
+  if(estimator == "mean"){
+    theta = m
+  } else if(estimator == "median")
+    theta = md
+  else
+    theta = vari
+  
+  n = length(x)
+  theta.hat = theta(x)
+  theta.jack = numeric(n)
+  for(i in 1:n) {
+    theta.jack[i] = theta(x[-i])
+  }
+  bias = (n-1)*mean(theta.jack)-theta.hat
+  se = sqrt((n-1) * mean((theta.jack - mean(theta.jack))^2))
+  return (list("values" = theta.jack, "bias"=bias, "se"=se))
+}
+
+
+getData = function (data, repSize, estimator) {
+  library(boot)
+  
+  m = function(x,i){
+    mean(x[i])
+  }
+  
+  md = function(x,i){
+    median(x[i])
+  }
+  
+  vari = function(x,i){
     var(x[i])
   }
   stat = m
@@ -139,32 +198,13 @@ getData = function (repSize, estimator) {
   } else if(estimator == "median")
     stat = md
   else
-    stat = r
-  print(law$GPA)
-  results <- boot(data = law$GPA, statistic = stat, R = repSize)
+    stat = vari
+  
+  results <- boot(data = data, statistic = stat, R = repSize)
   return (list("dt" = results))
   
 }
 
-formatCI = function(ci_obj) {
-  bca_vals = c(1.5,2.34)
-  studt_vals = c(3.14,4.18)
-  df2 = data.frame(bca_vals, studt_vals)
-  row.names(df2) = c("bca", "studt")
-  colnames(df2) = c("lower", "upper")
-  num_sim = 500 
-  str1 = "BOOTSTRAP CONFIDENCE INTERVAL CALCULATIONS\nBased on "
-  str2 = " bootstrap replicates\n\nIntervals:\n"
-  str7 = "Level\t"
-  types = "BCA\t\tStudent-t\n"
-  str3 = "95%\t("
-  str4 = ", "
-  str5 = ")\t("
-  str6 = ")"
-  
-  
-  cat(paste(str1, num_sim, str2, str3, bca_vals[1], str4, bca_vals[2], str5, studt_vals[1], str4, studt_vals[2], str6))
-}
 
 
 # Define server logic required to draw a histogram
@@ -300,35 +340,110 @@ server <- function(input, output) {
   })
   
   
-  dt = reactive ({
-    getData(input$repSize, input$estimator)
+  df = data.frame()
+  
+  output$contents <- renderTable({
+    req(input$file1)
+    df <- read.csv(input$file1$datapath)
+    head(df)
   })
   
-  output$distPlot <- renderPlot({
-    data = dt()$dt
-    ci = dt()$ci
-    #hist(data$t, col='darkgray', border = 'white', main ="Histogram of the Estimator", xlab = "Estimator" )
-    res = data.frame(data$t)
-    ggplot(res) + geom_histogram() + xlab("Estimator")
-    #abline(v=mean(data$t), col="red")
-    #abline(v=median(data$t), col="black", lty=2)
-    #legend("topleft", 
-    #      c("mean", "median"),
-    #     lty=c(1, 2), 
-    #    col=c("red","black"), 
-    #   bty = "n")
+  output$checkbox <- renderUI({
+    req(input$file1)
+    df <- read.csv(input$file1$datapath)
+    chvals = names(df)
+    chval_ans = c()
+    for (i in 1:ncol(df))
+    {
+      if (is.numeric(df[1, i]))
+        chval_ans = c(chval_ans, chvals[i])
+    }
+    radioButtons("data", "Choose Data Column",choiceNames = chval_ans, choiceValues = chval_ans, inline=T)
+    #checkboxGroupInput("data", label="Choose Data Column", choiceNames = names(df),
+    #choiceValues = names(df))
   })
   
-  output$stats = renderPrint({
-    data = dt()$dt
-    summary(data$t)
+  output$estimator = renderUI({
+    req(input$df)
+  })
+  
+  output$submit = renderUI({
+    req(input$data)
+    actionButton("submit", "Submit")
+  })
+  
+  dt = eventReactive(input$submit, {
+    data <- read.csv(input$file1$datapath)
+    col = input$data
+    print(data[,col])
+    data[,col]
     
   })
   
+  results = reactive({
+    req(input$method)
+    if(input$method == "bt")
+      return (getData(dt(), input$repSize, input$estimator))
+    else
+      return (jackknife(dt(), input$estimator))
+  })
+  
+  
+  bootstrapData = function(){
+    res = results()$dt
+    x_label = paste("Estimator =", input$estimator)
+    main_lab = paste("Histogram of the", input$estimator, "of the Bootstrap samples")
+    hist(res$t, main =main_lab, xlab = x_label, breaks=40 , col=rgb(0.2,0.8,0.5,0.5) , border=F)
+    abline(v=median(res$t), col="black", lty=2)
+    abline(v=mean(res$t), col="red", lty=1)
+    legend("topleft", 
+           c("mean", "median"),
+           lty=c(1, 2), 
+           col=c("red","black"), 
+           bty = "n")
+  }
+  
+  
+  jkData = function() {
+    res = results()
+    hist(res$values, main ="Histogram of the Estimator", xlab = "Estimator",  breaks=40 , col=rgb(0.2,0.8,0.5,0.5) , border=F)
+    abline(v=median(res$values), col="black", lty=2)
+    abline(v=mean(res$values), col="red", lty=1)
+    legend("topleft", 
+           c("mean", "median"),
+           lty=c(1, 2), 
+           col=c("red","black"), 
+           bty = "n")
+  }
+  
+  output$distPlot <- renderPlot({
+    #data = getData(dt(), input$repSize)$dt
+    if(input$method == "bt")
+      return (bootstrapData())
+    else
+      return (jkData())
+  })
+  
+  output$stats = renderPrint({
+    if(input$method == 'bt'){
+      data = results()$dt
+      s_err = sqrt(var(data$t))
+      bi = mean(data$t) - data$t0
+      m = mean(data$t)
+      md = median(data$t)
+      dtf = data.frame(s_err, bi, m, md)
+      colnames(dtf) = c("Std Error", "Bias", "Mean", "Median")
+      return (c("Std Error" = s_err, "Bias" = bi, "Mean" = m, "Median" = md))
+    }
+  })
   output$CI = renderPrint({
-    estimator = dt()$dt
-    ci_types = input$ci
-    boot.ci(estimator, type=ci_types)
+    if(input$method == 'bt'){
+      data = results()$dt
+      #res = boot.ci(results()$dt, type=input$ci)
+      #res[c(4)]
+      return (boot.ci(results()$dt, type=input$ci))
+    }
+    
   })
   
 }
