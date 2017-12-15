@@ -10,7 +10,6 @@
 library(shiny)
 library(shinydashboard)
 library(shinythemes)
-library(ggplot2)
 
 # Define UI for application that draws a histogram
 # library(dygraphs) # optional, used for dygraphs
