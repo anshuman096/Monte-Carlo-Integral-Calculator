@@ -305,37 +305,64 @@ server <- function(input, output) {
     
     dist_plot = ggplot(data.frame(x = c(left_bound, right_bound)), aes(x)) +
       title("Sampling Distribution Curve")
+    
     vector_vals = seq(as.integer(left_bound), as.integer(right_bound))
     
     if(sampling_dist == "unif") {
       dist_plot + 
         geom_hline(yintercept = as.numeric(right_bound), color = "black") + 
         #geom_segment(aes(x = left_bound, y = 0, xend = right_bound, yend = right_bound)) +
-        #geom_polygon(data = data.frame(x = c(left_bound, right_bound)), aes(left_bound, right_bound)) + 
+        #geom_polygon(data = data.frame(x = c(left_bound, right_bound), y = c(0, right_bound)), aes(left_bound, right_bound)) + 
         scale_y_continuous(limits = c(0, right_bound))
     } else if(sampling_dist == "norm") {
       dist_plot + 
-        stat_function(fun = dnorm, n = input$iterations, args = list(mean = 0, sd = 1))
+        stat_function(fun = dnorm, n = input$iterations, args = list(mean = 0, sd = 1), geom = "area") + 
+        stat_function(fun = dnorm, xlim = c(left_bound, right_bound), geom = "area")
     } else if(sampling_dist == "lnorm") {
       dist_plot + 
-        stat_function(fun = dlnorm)
+        stat_function(fun = dlnorm) + 
+        stat_function(fun = dlnorm, xlim = c(left_bound, right_bound), geom = "area")
     } else if(sampling_dist == "exp") {
       dist_plot + 
-        stat_function(fun = dexp)
+        stat_function(fun = dexp) + 
+        stat_function(fun = dexp, xlim = c(left_bound, right_bound), geom = "area")
     } else if(sampling_dist == "geo") {
-      ggplot(data.frame(vector_vals, dgeom(vector_vals, prob = input$geop))) + 
-        geom_point(aes(x = vector_vals, y = dgeom(vector_vals, prob = input$geop))) + 
-        geom_line(aes(x = vector_vals, y = dgeom(vector_vals, prob = input$geop))) + 
+      sample_vals = data.frame(vector_vals, dgeom(vector_vals, prob = input$geop))
+      names(sample_vals) = c("x", "y")
+      sample_vals$fill_var = vector(mode = "logical", length = length(sample_vals$x))
+      sample_vals$fill_var = TRUE
+      
+      ggplot(sample_vals, aes(x = x, y = y, group = fill_var)) +
+        geom_point(aes(fill = fill_var)) + 
+        geom_line(aes(fill = fill_var)) + 
+        geom_area() + 
+        scale_fill_brewer() + 
         labs(title = "Sampling Distribution Curve", x = "x", y = "y")
+      
     } else if(sampling_dist == "binom") {
-      ggplot(data.frame(vector_vals, dbinom(vector_vals, size = input$size, prob = input$bp))) + 
-        geom_point(aes(x = vector_vals, y = dbinom(vector_vals, size = input$size, prob = input$bp))) + 
-        geom_line(aes(x = vector_vals, y = dbinom(vector_vals, size = input$size, prob = input$bp))) + 
+      sample_vals = data.frame(vector_vals, dbinom(vector_vals, size = input$size, prob = input$bp))
+      names(sample_vals) = c("x", "y")
+      sample_vals$fill_var = vector(mode = "logical", length = length(sample_vals$x))
+      sample_vals$fill_var = TRUE
+      
+      ggplot(sample_vals, aes(x = x, y = y, group = fill_var)) +
+        geom_point(aes(fill = fill_var)) + 
+        geom_line(aes(fill = fill_var)) + 
+        geom_area() + 
+        scale_fill_brewer() + 
         labs(title = "Sampling Distribution Curve", x = "x", y = "y")
+      
     } else {
-      ggplot(data.frame(vector_vals, dpois(vector_vals, lambda = input$lambda))) + 
-        geom_point(aes(x = vector_vals, y = dpois(vector_vals, lambda = input$lambda))) + 
-        geom_line(aes(x = vector_vals, y = dpois(vector_vals, lambda = input$lambda))) + 
+      sample_vals = data.frame(vector_vals, dpois(vector_vals, lambda = input$lambda))
+      names(sample_vals) = c("x", "y")
+      sample_vals$fill_var = vector(mode = "logical", length = length(sample_vals$x))
+      sample_vals$fill_var = TRUE
+      
+      ggplot(sample_vals, aes(x = x, y = y, group = fill_var)) +
+        geom_point(aes(fill = fill_var)) + 
+        geom_line(aes(fill = fill_var)) + 
+        geom_area() + 
+        scale_fill_brewer() + 
         labs(title = "Sampling Distribution Curve", x = "x", y = "y")
     }
     
