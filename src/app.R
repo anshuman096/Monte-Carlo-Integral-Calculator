@@ -11,6 +11,8 @@ library(shiny)
 library(shinydashboard)
 library(shinythemes)
 library(ggplot2)
+library(DT)
+library(GoFKernel)
 
 
 # Header elements for the visualization
@@ -30,6 +32,7 @@ sidebar <- dashboardSidebar(sidebarMenu(
 body <- dashboardBody(tabItems(
   #MCI Application
   tabItem(tabName = "mci",
+          fluidPage(theme=shinytheme("slate"),
           span(titlePanel("Monte Carlo Integration Calculator"), style="color:black"),
           sidebarLayout(
             sidebarPanel(
@@ -70,7 +73,7 @@ body <- dashboardBody(tabItems(
               
               textInput("text", "Enter the function:"),
               numericInput("leftb", "Left Bound:", "0"),
-              numericInput("rightb", "Right Bound:", "0"),
+              numericInput("rightb", "Right Bound:", "1"),
               numericInput("iterations", "Input the number of iterations:", "1")
             ),
             mainPanel(
@@ -80,18 +83,20 @@ body <- dashboardBody(tabItems(
               plotOutput(outputId = "distribution_plot"),
               plotOutput(outputId = "plot")
             )
-          )),
+          ))
+      ),
   #Inverse Transform 
   tabItem(tabName = "inverseTransform",
+          fluidPage(theme=shinytheme("slate"),
           span(titlePanel("Inverse Transformation Method"), style="color:black"),
           
+          # Sidebar with a slider input for number of bins
           sidebarLayout(
             sidebarPanel(
               textInput("cdf", "Enter the CDF:"),
-              textInput("pdf", "Enter the PDF if the CDF is not available:"),
-              numericInput("leftb", "Left Bound:", "0"),
-              numericInput("rightb", "Right Bound:", "0"),
-              numericInput("iterations", "Input the number of iterations:", "1")
+              numericInput("ileftb", "Left Bound:", "0"),
+              numericInput("irightb", "Right Bound:", "1"),
+              numericInput("iiterations", "Input the number of iterations:", "1")
               
             ),
             
@@ -100,9 +105,11 @@ body <- dashboardBody(tabItems(
               plotOutput(outputId = "invHist")
             )
           )
+        )
   ),
   #Accept Reject 
   tabItem(tabName = "acceptReject",
+          fluidPage(theme=shinytheme("slate"),
           span(titlePanel("Acceptance Rejection Method"), style="color:black"),
           
           sidebarLayout(
@@ -111,21 +118,22 @@ body <- dashboardBody(tabItems(
               # br() element to introduce extra vertical spacing ----
               br(),
               
-              textInput("text", "Enter the function:"),
-              numericInput("leftb", "Left Bound:", "0"),
-              numericInput("rightb", "Right Bound:", "0"),
-              numericInput("iterations", "Input the number of iterations:", "1")
+              textInput("artext", "Enter the function:"),
+              numericInput("arleftb", "Left Bound:", "0"),
+              numericInput("arrightb", "Right Bound:", "1"),
+              numericInput("ariterations", "Input the number of iterations:", "1")
             ),
             mainPanel(
               plotOutput(outputId = "acceptrejectplot")
             )
           )
-  ),
+      )
+    ),
   
   #Bootknife Application
   tabItem(
     tabName = "bootknife",
-    theme = shinytheme("superhero"),
+    fluidPage(theme=shinytheme("slate"),
     # App title ----
     span(titlePanel("Non Parametric Bootstrap and Jackknife"), style="color:black"),
     
@@ -175,10 +183,11 @@ body <- dashboardBody(tabItems(
         
       )
     )
+  )
   ),
   #Permutation Testing
   tabItem(tabName = "permTest",
-          theme = shinytheme("superhero"),
+          fluidPage(theme=shinytheme("slate"),
           # App title ----
           span(titlePanel("Permutation Tests"), style="color:black"),
           
@@ -199,8 +208,8 @@ body <- dashboardBody(tabItems(
                           min = 999,
                           max = 2000,
                           value = 200),
-              checkboxGroupInput(inputId = "ci", label="Types of Confidence Intervals (Only for Bootstrap):", choiceNames = c("Percentile", "Normal", "Bca", "Basic"),
-                                 choiceValues = c("Percentile", "Normal", "BCA", "Basic"), selected = c("BCA")),
+               checkboxGroupInput(inputId = "ci", label="Types of Confidence Intervals (Only for Bootstrap):", choiceNames = c("Percentile", "Normal", "Bca", "Basic"),
+                                  choiceValues = c("Percentile", "Normal", "BCA", "Basic"), selected = c("BCA")),
               radioButtons("test", "Choose the test you would like to perform:",
                            c("Two Sample t-Test" = "tt",
                              "Two Sample K-S Test" = "kst",
@@ -230,12 +239,11 @@ body <- dashboardBody(tabItems(
             )
           )
   )
-  
+  ) 
 ) # /tabItems
 )# /dashboardBody
 
-ui <- fluidPage(
-  theme = shinytheme("slate"),
+ui <- fluidPage(theme = shinytheme("slate"),
   # Application title
   titlePanel("Visualization Tools for Statistical Computing"),
   dashboardPage(header, sidebar, body, skin = "black")
@@ -323,33 +331,18 @@ getData = function (data, repSize, estimator) {
 server <- function(input, output) {
   
   simData = function(){
-    nrightb <- parse(text=input$rightb) # upper bound
-    nleftb <- parse(text=input$leftb) # lower bound
-    m=input$iterations
-    
+    nrightb <- eval(parse(text=input$irightb)) # upper bound
+    nleftb <- eval(parse(text=input$ileftb)) # lower bound
+    m=input$iiterations
+    req(input$cdf)
     if(input$cdf != ""){
       og_f = function(x){
         eval(parse(text = input$cdf))
       }
     }
-    else if(input$pdf !=""){
-      og_f = input$pdf
-      integrand <- function(x){
-        eval(parse(text = input$pdf))
-      }
-      
-      val = try(integrate(integrand, lower=0, upper=y))
-      print(val)
-      if(class(val) == "try-error")
-        print("Integral cannot be computed")
-      else
-        og_f = function(x){ val[1] }
-    }
     
-    
-    
-    inv_f = inverse(og_f, lower = input$leftb,  upper =  input$rightb)
-    simulation_data = vector(length = input$iterations)
+    inv_f = inverse(og_f, lower = nleftb,  upper =  nrightb)
+    simulation_data = vector(length = m)
     for(i in 1:length(simulation_data)){
       u = runif(1,0,1)
       simulation_data[i] = inv_f(u)
@@ -362,27 +355,24 @@ server <- function(input, output) {
     hist(arr, prob=TRUE)
   })
   
-  acceptreject=function(n){
-    req(input$text)
-    req(input$rightb)
-    req(input$leftb)
-    #n <- 1000
+  acceptreject=function(){
+    req(input$artext)
+    req(input$arrightb)
+    req(input$arleftb)
+    n <- input$ariterations
     k <- 0 #counter for accepted
     j <- 0 #iterations
     y <- numeric(n)
-    nrightb <- input$rightb
-    nleftb <- input$leftb
+    nrightb <- input$arrightb
+    nleftb <- input$arleftb
     func=function(x) {
-      eval(parse(text = input$text))
+      eval(parse(text = input$artext))
     }
     
     integrand <- function(x){
-      eval(parse(text = input$text))
+      eval(parse(text = input$artext))
     }
-    #func
-    #c=optimize(integrand, interval=c(input$leftb, input$rightb), maximum=TRUE)
-    c <- optim(input$leftb,integrand, method="SANN",control=list(fnscale=-1)) 
-    #print(resopt)
+    c <- optim(input$arleftb,integrand, method="SANN",control=list(fnscale=-1)) 
     x <- runif(1) #random variate from g
     while (k < n) {
       u <- runif(1)
@@ -394,11 +384,11 @@ server <- function(input, output) {
         y[k] <- x
       }
     }
-    y
+    return(y)
   }
   
   output$acceptrejectplot=renderPlot({
-    hist(acceptreject(1000),freq=F)
+    hist(acceptreject(),freq=F)
   })
   
   output$text <- renderText({
