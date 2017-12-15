@@ -314,7 +314,17 @@ server <- function(input, output) {
       dist_plot + 
         stat_function(fun = dnorm, n = input$iterations, args = list(mean = 0, sd = 1))
     } else if(sampling_dist == "lnorm") {
-      
+      dist_plot + 
+        stat_function(fun = dlnorm)
+    } else if(sampling_dist == "exp") {
+      dist_plot + 
+        stat_function(fun = dexp)
+    } else if(sampling_dist == "geo") {
+      vector_vals = seq(as.integer(left_bound), as.integer(right_bound))
+      ggplot(data.frame(vector_vals, dgeom(vector_vals, prob = input$geop))) + 
+        geom_point(aes(x = vector_vals, y = dgeom(vector_vals, prob = input$geop))) + 
+        geom_line(aes(x = vector_vals, y = dgeom(vector_vals, prob = input$geop))) + 
+        labs(title = "Sampling Distribution Curve", x = "x", y = "y")
     }
     
     
