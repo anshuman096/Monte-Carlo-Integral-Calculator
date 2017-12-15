@@ -305,6 +305,7 @@ server <- function(input, output) {
     
     dist_plot = ggplot(data.frame(x = c(left_bound, right_bound)), aes(x)) +
       title("Sampling Distribution Curve")
+    vector_vals = seq(as.integer(left_bound), as.integer(right_bound))
     
     if(sampling_dist == "unif") {
       dist_plot + 
@@ -320,10 +321,19 @@ server <- function(input, output) {
       dist_plot + 
         stat_function(fun = dexp)
     } else if(sampling_dist == "geo") {
-      vector_vals = seq(as.integer(left_bound), as.integer(right_bound))
       ggplot(data.frame(vector_vals, dgeom(vector_vals, prob = input$geop))) + 
         geom_point(aes(x = vector_vals, y = dgeom(vector_vals, prob = input$geop))) + 
         geom_line(aes(x = vector_vals, y = dgeom(vector_vals, prob = input$geop))) + 
+        labs(title = "Sampling Distribution Curve", x = "x", y = "y")
+    } else if(sampling_dist == "binom") {
+      ggplot(data.frame(vector_vals, dbinom(vector_vals, size = input$size, prob = input$bp))) + 
+        geom_point(aes(x = vector_vals, y = dbinom(vector_vals, size = input$size, prob = input$bp))) + 
+        geom_line(aes(x = vector_vals, y = dbinom(vector_vals, size = input$size, prob = input$bp))) + 
+        labs(title = "Sampling Distribution Curve", x = "x", y = "y")
+    } else {
+      ggplot(data.frame(vector_vals, dpois(vector_vals, lambda = input$lambda))) + 
+        geom_point(aes(x = vector_vals, y = dpois(vector_vals, lambda = input$lambda))) + 
+        geom_line(aes(x = vector_vals, y = dpois(vector_vals, lambda = input$lambda))) + 
         labs(title = "Sampling Distribution Curve", x = "x", y = "y")
     }
     
