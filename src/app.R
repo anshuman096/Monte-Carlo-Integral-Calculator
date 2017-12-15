@@ -311,8 +311,7 @@ server <- function(input, output) {
     if(sampling_dist == "unif") {
       dist_plot + 
         geom_hline(yintercept = as.numeric(right_bound), color = "black") + 
-        #geom_segment(aes(x = left_bound, y = 0, xend = right_bound, yend = right_bound)) +
-        #geom_polygon(data = data.frame(x = c(left_bound, right_bound), y = c(0, right_bound)), aes(left_bound, right_bound)) + 
+        geom_rect(aes(xmin = left_bound, xmax = right_bound, ymin = 0, ymax = right_bound)) + 
         scale_y_continuous(limits = c(0, right_bound))
     } else if(sampling_dist == "norm") {
       dist_plot + 
